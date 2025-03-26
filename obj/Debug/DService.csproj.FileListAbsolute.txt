@@ -25,3 +25,17 @@ C:\Users\drash\source\repos\DService\DService\bin\Debug\System.Runtime.CompilerS
 C:\Users\drash\source\repos\DService\DService\obj\Debug\DService.csproj.Up2Date
 C:\Users\drash\source\repos\DService\DService\bin\Debug\Newtonsoft.Json.dll
 C:\Users\drash\source\repos\DService\DService\bin\Debug\Newtonsoft.Json.xml
+C:\Kiran\WCService\bin\Debug\DService.exe.config
+C:\Kiran\WCService\bin\Debug\DService.exe
+C:\Kiran\WCService\bin\Debug\DService.pdb
+C:\Kiran\WCService\bin\Debug\Newtonsoft.Json.dll
+C:\Kiran\WCService\bin\Debug\System.Buffers.dll
+C:\Kiran\WCService\bin\Debug\System.Memory.dll
+C:\Kiran\WCService\bin\Debug\System.Numerics.Vectors.dll
+C:\Kiran\WCService\obj\Debug\DService.csproj.AssemblyReference.cache
+C:\Kiran\WCService\obj\Debug\DService.ProjectInstaller.resources
+C:\Kiran\WCService\obj\Debug\DService.csproj.GenerateResource.cache
+C:\Kiran\WCService\obj\Debug\DService.csproj.CoreCompileInputs.cache
+C:\Kiran\WCService\obj\Debug\DService.csproj.Up2Date
+C:\Kiran\WCService\obj\Debug\DService.exe
+C:\Kiran\WCService\obj\Debug\DService.pdb
