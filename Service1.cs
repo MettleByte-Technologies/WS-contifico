@@ -47,7 +47,7 @@ namespace DService
 
         private void OnElapsedTime(object source, ElapsedEventArgs e)
         {
-            WriteToFile("Service is recall at " + DateTime.Now);
+            WriteToFile("Checking for new Excel files at \n" + DateTime.Now);
             ProcessExcelFiles();
         }
 
@@ -58,48 +58,42 @@ namespace DService
                 if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
                 if (!Directory.Exists(processedFolderPath)) Directory.CreateDirectory(processedFolderPath);
 
-                string[] pedidoFiles = Directory.GetFiles(folderPath, "fa_Pedido_*.xlsx");
-                string[] detalleFiles = Directory.GetFiles(folderPath, "fa_detalle_pedido_*.xlsx");
+                string[] files = Directory.GetFiles(folderPath, "*.xlsx");
 
 
-                if (!detalleFiles.Any() || !pedidoFiles.Any())
+                if (files.Length == 0)
                 {
-                    WriteToFile("⚠️ No matching files found in folder: " + folderPath);
+                    Console.WriteLine(":x: No files found in the source folder.");
                     return;
                 }
 
-                WriteToFile($"📂 Found {detalleFiles.Length} detalle files and {pedidoFiles.Length} pedido files.");
+                List<string> missingFilesLog = new List<string>();
 
-                foreach (var pedidoFile in pedidoFiles)
+                foreach (var file in files)
                 {
-                    // Extract the unique ID from the filename (e.g., "fa_Pedido_46168.xlsx" → "46168")
-                    string pedidoId = Path.GetFileNameWithoutExtension(pedidoFile).Replace("fa_Pedido_", "");
-
-                    // Find the corresponding detalle file with the same ID
-                    string detalleFile = detalleFiles.FirstOrDefault(f => Path.GetFileNameWithoutExtension(f).EndsWith(pedidoId));
-
-                    if (string.IsNullOrEmpty(detalleFile))
+                    Console.WriteLine($"Processing file: {file}");
+                    // Read Excel data
+                    List<Detalle> detalles = ReadExcelData(file);
+                    List<Cliente> pedidos = ReadExcelDataPedido(file);
+                    // Process data if successfully extracted
+                    if (detalles.Count > 0 && pedidos.Count > 0)
                     {
-                        WriteToFile($"⚠️ No matching detalle file found for {Path.GetFileName(pedidoFile)}");
-                        continue;
-                    }
-
-                    WriteToFile($"📖 Processing files: {Path.GetFileName(detalleFile)} and {Path.GetFileName(pedidoFile)}");
-
-                    List<Detalle> detalles = ReadExcelData(detalleFile);
-                    List<Cliente> pedidos = ReadExcelDataPedido(pedidoFile);
-
-                    if (detalles.Any() && pedidos.Any())
-                    {
-                        WriteToFile($"📦 Read {detalles.Count} items from {Path.GetFileName(detalleFile)}");
-                        WriteToFile($"🧑 Read {pedidos.Count} customers from {Path.GetFileName(pedidoFile)}");
-
-                        Task.Run(async () => await CreateDocumentAsync(detalles, pedidos, detalleFile, pedidoFile)).Wait();
+                        CreateDocumentAsync(detalles, pedidos, file, file);
                     }
                     else
                     {
-                        WriteToFile("⚠️ No valid data found in Excel files.");
+                        Console.WriteLine($"Skipping file {file}: Data extraction failed.");
                     }
+                }
+                // :fire: NEW: Display missing file report at the end
+                if (missingFilesLog.Count > 0)
+                {
+                    Console.WriteLine("\nMissing Files Report:");
+                    missingFilesLog.ForEach(Console.WriteLine);
+                }
+                else
+                {
+                    Console.WriteLine("All required file pairs are present.");
                 }
             }
             catch (Exception ex)
@@ -129,14 +123,16 @@ namespace DService
                         if (!string.IsNullOrEmpty(header)) headers[header] = col;
                     }
 
+                    
+
                     for (int row = 2; row <= rowCount; row++)
                     {
                         var detalle = new Detalle
                         {
-                            producto_id = headers.ContainsKey("depe_codigo_producto") ? worksheet.Cells[row, headers["depe_codigo_producto"]].Text : "",
-                            cantidad = headers.ContainsKey("depe_cantidad") ? double.TryParse(worksheet.Cells[row, headers["depe_cantidad"]].Text, out double cantidad) ? cantidad : 0 : 0,
-                            precio = headers.ContainsKey("depe_precio") ? double.TryParse(worksheet.Cells[row, headers["depe_precio"]].Text, out double precio) ? precio : 0 : 0,
-                            porcentaje_iva = headers.ContainsKey("depe_pago_iva") ? int.TryParse(worksheet.Cells[row, headers["depe_pago_iva"]].Text, out int iva) ? iva : 0 : 0,
+                            producto_id = headers.ContainsKey("producto_id") ? worksheet.Cells[row, headers["producto_id"]].Text : "",
+                            cantidad = headers.ContainsKey("cantidad") ? double.TryParse(worksheet.Cells[row, headers["cantidad"]].Text, out double cantidad) ? cantidad : 0 : 0,
+                            precio = headers.ContainsKey("precio") ? double.TryParse(worksheet.Cells[row, headers["precio"]].Text, out double precio) ? precio : 0 : 0,
+                            porcentaje_iva = headers.ContainsKey("porcentaje_iva") ? int.TryParse(worksheet.Cells[row, headers["porcentaje_iva"]].Text, out int iva) ? iva : 0 : 0,
                             porcentaje_descuento = headers.ContainsKey("porcentaje_descuento") ? double.TryParse(worksheet.Cells[row, headers["porcentaje_descuento"]].Text, out double descuento) ? descuento : 0 : 0,
                             base_cero = headers.ContainsKey("base_cero") ? double.TryParse(worksheet.Cells[row, headers["base_cero"]].Text, out double baseCero) ? baseCero : 0 : 0,
                             base_gravable = 0,
@@ -192,11 +188,11 @@ namespace DService
                         var cliente = new Cliente
                         {
                             ruc = headers.ContainsKey("ruc") ? worksheet.Cells[row, headers["ruc"]].Text : "",
-                            cedula = headers.ContainsKey("pedi_codigo_cliente") ? worksheet.Cells[row, headers["pedi_codigo_cliente"]].Text : "",
-                            razon_social = headers.ContainsKey("pedi_nombre_cliente") ? worksheet.Cells[row, headers["pedi_nombre_cliente"]].Text : "",
+                            cedula = headers.ContainsKey("cedula") ? worksheet.Cells[row, headers["cedula"]].Text : "",
+                            razon_social = headers.ContainsKey("razon_social") ? worksheet.Cells[row, headers["razon_social"]].Text : "",
                             telefonos = headers.ContainsKey("telefonos") ? worksheet.Cells[row, headers["telefonos"]].Text : "",
                             direccion = headers.ContainsKey("direccion") ? worksheet.Cells[row, headers["direccion"]].Text : "",
-                            tipo = headers.ContainsKey("pedi_tipo") ? worksheet.Cells[row, headers["pedi_tipo"]].Text : "",
+                            tipo = headers.ContainsKey("tipo") ? worksheet.Cells[row, headers["tipo"]].Text : "",
                             email = headers.ContainsKey("email") ? worksheet.Cells[row, headers["email"]].Text : "",
                             es_extranjero = headers.ContainsKey("es_extranjero") && bool.TryParse(worksheet.Cells[row, headers["es_extranjero"]].Text, out bool esExtranjero) ? esExtranjero : false
                         };
@@ -267,7 +263,7 @@ namespace DService
                 if (response.IsSuccessStatusCode)
                 {
                     MoveFileToFolderB(detalleFile);
-                    MoveFileToFolderB(pedidoFile);
+                    
                     WriteToFile("✅ Files moved to FolderB after successful API response.");
                 }
                 else
