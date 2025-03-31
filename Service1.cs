@@ -14,6 +14,7 @@ using System.Xml.Linq;
 using Newtonsoft.Json;
 using OfficeOpenXml;
 using DService.Models;
+using System.Globalization;
 
 namespace DService
 {
@@ -73,12 +74,13 @@ namespace DService
                 {
                     Console.WriteLine($"Processing file: {file}");
                     // Read Excel data
-                    List<Detalle> detalles = ReadExcelData(file);
+                    string fetcha;
+                    List<Detalle> detalles = ReadExcelData(file, out fetcha);
                     List<Cliente> pedidos = ReadExcelDataPedido(file);
                     // Process data if successfully extracted
                     if (detalles.Count > 0 && pedidos.Count > 0)
                     {
-                        CreateDocumentAsync(detalles, pedidos, file, file);
+                        CreateDocumentAsync(detalles, pedidos, file, file,fetcha);
                     }
                     else
                     {
@@ -102,9 +104,11 @@ namespace DService
             }
         }
 
-        private static List<Detalle> ReadExcelData(string filePath)
+        private static List<Detalle> ReadExcelData(string filePath,out string fecha)
         {
             var detalles = new List<Detalle>();
+            fecha = ""; // Initialize fecha
+
             try
             {
                 ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
@@ -120,33 +124,38 @@ namespace DService
                     for (int col = 1; col <= colCount; col++)
                     {
                         string header = worksheet.Cells[1, col].Text.Trim().ToLower();
-                        if (!string.IsNullOrEmpty(header)) headers[header] = col;
+                        if (!string.IsNullOrEmpty(header))
+                            headers[header] = col;
                     }
 
-                    
+                    // ✅ Safe retrieval of fecha_emision
+                    if (headers.ContainsKey("fecha_emision") && worksheet.Cells[2, headers["fecha_emision"]] != null)
+                        fecha = worksheet.Cells[2, headers["fecha_emision"]].Text ?? "";
 
                     for (int row = 2; row <= rowCount; row++)
                     {
                         var detalle = new Detalle
                         {
-                            producto_id = headers.ContainsKey("producto_id") ? worksheet.Cells[row, headers["producto_id"]].Text : "",
-                            cantidad = headers.ContainsKey("cantidad") ? double.TryParse(worksheet.Cells[row, headers["cantidad"]].Text, out double cantidad) ? cantidad : 0 : 0,
-                            precio = headers.ContainsKey("precio") ? double.TryParse(worksheet.Cells[row, headers["precio"]].Text, out double precio) ? precio : 0 : 0,
-                            porcentaje_iva = headers.ContainsKey("porcentaje_iva") ? int.TryParse(worksheet.Cells[row, headers["porcentaje_iva"]].Text, out int iva) ? iva : 0 : 0,
-                            porcentaje_descuento = headers.ContainsKey("porcentaje_descuento") ? double.TryParse(worksheet.Cells[row, headers["porcentaje_descuento"]].Text, out double descuento) ? descuento : 0 : 0,
-                            base_cero = headers.ContainsKey("base_cero") ? double.TryParse(worksheet.Cells[row, headers["base_cero"]].Text, out double baseCero) ? baseCero : 0 : 0,
-                            base_gravable = 0,
-                            base_no_gravable = headers.ContainsKey("base_no_gravable") ? double.TryParse(worksheet.Cells[row, headers["base_no_gravable"]].Text, out double baseNoGravable) ? baseNoGravable : 0 : 0
+                            producto_id = headers.ContainsKey("producto_id") ? worksheet.Cells[row, headers["producto_id"]]?.Text ?? "" : "",
+                            cantidad = headers.ContainsKey("cantidad") && double.TryParse(worksheet.Cells[row, headers["cantidad"]]?.Text, out double cantidad) ? cantidad : 0,
+                            precio = headers.ContainsKey("precio") && double.TryParse(worksheet.Cells[row, headers["precio"]]?.Text, out double precio) ? precio : 0,
+                            porcentaje_iva = headers.ContainsKey("porcentaje_iva") && int.TryParse(worksheet.Cells[row, headers["porcentaje_iva"]]?.Text, out int iva) ? iva : 0,
+                            porcentaje_descuento = headers.ContainsKey("porcentaje_descuento") && double.TryParse(worksheet.Cells[row, headers["porcentaje_descuento"]]?.Text, out double descuento) ? descuento : 0,
+                            base_cero = headers.ContainsKey("base_cero") && double.TryParse(worksheet.Cells[row, headers["base_cero"]]?.Text, out double baseCero) ? baseCero : 0,
+                            base_gravable = 0, // To be assigned below
+                            base_no_gravable = headers.ContainsKey("base_no_gravable") && double.TryParse(worksheet.Cells[row, headers["base_no_gravable"]]?.Text, out double baseNoGravable) ? baseNoGravable : 0
                         };
-                        // ✅ Set base_gravable as precio * cantidad
+
+                        // ✅ Corrected base_gravable calculation
                         if (detalle.porcentaje_iva == 0)
                         {
-                            detalle.base_cero = detalle.precio * detalle.cantidad;  // Assign base_cero when tax is 0
+                            detalle.base_cero = detalle.precio * detalle.cantidad;
                             detalle.base_gravable = 0;
                         }
                         else
                         {
-                            detalle.base_gravable = detalle.precio * detalle.cantidad;  // Assign base_gravable when tax > 0
+                            double descuento_aplicado = (detalle.porcentaje_descuento / 100) * detalle.precio * detalle.cantidad;
+                            detalle.base_gravable = (detalle.precio * detalle.cantidad) - descuento_aplicado;
                             detalle.base_cero = 0;
                         }
 
@@ -188,6 +197,7 @@ namespace DService
                         var cliente = new Cliente
                         {
                             ruc = headers.ContainsKey("ruc") ? worksheet.Cells[row, headers["ruc"]].Text : "",
+                           // fecha_emision = headers.ContainsKey("fecha_emision") ? worksheet.Cells[row, headers["fecha_emision"]].Text : "",
                             cedula = headers.ContainsKey("cedula") ? worksheet.Cells[row, headers["cedula"]].Text : "",
                             razon_social = headers.ContainsKey("razon_social") ? worksheet.Cells[row, headers["razon_social"]].Text : "",
                             telefonos = headers.ContainsKey("telefonos") ? worksheet.Cells[row, headers["telefonos"]].Text : "",
@@ -208,7 +218,7 @@ namespace DService
         }
 
         // Creates a document using API call
-        private async Task CreateDocumentAsync(List<Detalle> detalles, List<Cliente> pedidos, string detalleFile, string pedidoFile)
+        private async Task CreateDocumentAsync(List<Detalle> detalles, List<Cliente> pedidos, string detalleFile, string pedidoFile,string fecha)
         {
             using (HttpClient client = new HttpClient())
             {
@@ -227,7 +237,7 @@ namespace DService
                 var requestData = new Documento
                 {
                     pos = apiToken,
-                    fecha_emision = "26/01/2016",
+                    fecha_emision = fecha.Replace("-", "/"),
                     tipo_documento = "PRE",
                     estado = "P",
                     caja_id = "",
