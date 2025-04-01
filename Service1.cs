@@ -244,7 +244,7 @@ namespace DService
                     cliente = new Cliente
                     {
                         ruc = cliente.ruc,
-                        cedula = "0" + cliente.cedula,
+                        cedula = formattedCedula,
                         razon_social = cliente.razon_social,
                         telefonos = cliente.telefonos,
                         direccion = cliente.direccion,
