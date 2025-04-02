@@ -57,15 +57,17 @@ namespace DService
         {
             try
             {
+                WriteToFile("Checking files at:" + folderPath);
                 if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
                 if (!Directory.Exists(processedFolderPath)) Directory.CreateDirectory(processedFolderPath);
 
                 string[] files = Directory.GetFiles(folderPath, "*.xlsx");
 
+                WriteToFile("files length:" + files.Length);
 
                 if (files.Length == 0)
                 {
-                    Console.WriteLine(":x: No files found in the source folder.");
+                    WriteToFile("No files found in the source folder.");
                     return;
                 }
 
@@ -73,7 +75,7 @@ namespace DService
 
                 foreach (var file in files)
                 {
-                    Console.WriteLine($"Processing file: {file}");
+                    WriteToFile($"Processing file: {file}");
                     // Read Excel data
                     string fetcha;
                     List<Detalle> detalles = ReadExcelData(file, out fetcha);
@@ -85,18 +87,18 @@ namespace DService
                     }
                     else
                     {
-                        Console.WriteLine($"Skipping file {file}: Data extraction failed.");
+                        WriteToFile($"Skipping file {file}: Data extraction failed.");
                     }
                 }
                 // :fire: NEW: Display missing file report at the end
                 if (missingFilesLog.Count > 0)
                 {
-                    Console.WriteLine("\nMissing Files Report:");
-                    missingFilesLog.ForEach(Console.WriteLine);
+                    WriteToFile("\nMissing Files Report:");
+                    missingFilesLog.ForEach(WriteToFile);
                 }
                 else
                 {
-                    Console.WriteLine("All required file pairs are present.");
+                    WriteToFile("All required file pairs are present.");
                 }
             }
             catch (Exception ex)
@@ -105,14 +107,15 @@ namespace DService
             }
         }
 
-        private static List<Detalle> ReadExcelData(string filePath,out string fecha)
+        private List<Detalle> ReadExcelData(string filePath,out string fecha)
         {
             var detalles = new List<Detalle>();
             fecha = ""; // Initialize fecha
 
             try
             {
-                ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+                // ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+                ExcelPackage.License.SetNonCommercialPersonal("My Name");
                 using (var package = new ExcelPackage(new FileInfo(filePath)))
                 {
                     var worksheet = package.Workbook.Worksheets[0];
@@ -166,18 +169,19 @@ namespace DService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading Excel file: {ex.Message}");
+                WriteToFile($"Error reading Excel file: {ex.Message}");
             }
             return detalles;
         }
 
         // Reads 'pedido' Excel file and extracts client details
-        private static List<Cliente> ReadExcelDataPedido(string filePath)
+        private List<Cliente> ReadExcelDataPedido(string filePath)
         {
             var clientes = new List<Cliente>();
             try
             {
-                ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+                // ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+                ExcelPackage.License.SetNonCommercialPersonal("My Name");
                 using (var package = new ExcelPackage(new FileInfo(filePath)))
                 {
                     var worksheet = package.Workbook.Worksheets[0];
@@ -213,7 +217,7 @@ namespace DService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading Excel file: {ex.Message}");
+                WriteToFile($"Error reading Excel file: {ex.Message}");
             }
             return clientes;
         }
