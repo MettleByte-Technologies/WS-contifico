@@ -15,17 +15,18 @@ using Newtonsoft.Json;
 using OfficeOpenXml;
 using DService.Models;
 using System.Globalization;
+using System.Configuration;
 
 namespace DService
 {
     public partial class Service1 : ServiceBase
     {
         Timer timer = new Timer(); // name space(using System.Timers;)
-        private string folderPath = @"C:\Folder A"; // Use @ for the correct path format
-        private string processedFolderPath = @"C:\Folder B"; // Use @ for the correct path format
-        private readonly string apiKey = "FrguR1kDpFHaXHLQwplZ2CwTX3p8p9XHVTnukL98V5U";
-        private readonly string apiToken = "dce704ae-189e-4545-bea3-257d9249a594";
-        private readonly string apiUrl = "https://api.contifico.com/sistema/api/v1/documento/";
+        private string folderPath = ConfigurationManager.AppSettings["SourcefolderPath"];
+        private string processedFolderPath = ConfigurationManager.AppSettings["TargetfolderPath"];
+        private readonly string apiKey = ConfigurationManager.AppSettings["apiKey"]; //"FrguR1kDpFHaXHLQwplZ2CwTX3p8p9XHVTnukL98V5U";
+        private readonly string apiToken = ConfigurationManager.AppSettings["apiToken"]; //"dce704ae-189e-4545-bea3-257d9249a594";
+        private readonly string apiUrl = ConfigurationManager.AppSettings["apiUrl"]; //"https://api.contifico.com/sistema/api/v1/documento/";
 
 
         public Service1()
@@ -232,7 +233,7 @@ namespace DService
                     return;
                 }
 
-                string formattedCedula = cliente.cedula.Length == 9 ? "0" + cliente.cedula : cliente.cedula;
+            //    string formattedCedula = cliente.cedula.Length == 9 ? "0" + cliente.cedula : cliente.cedula;
 
                 var requestData = new Documento
                 {
@@ -244,7 +245,7 @@ namespace DService
                     cliente = new Cliente
                     {
                         ruc = cliente.ruc,
-                        cedula = formattedCedula,
+                        cedula = cliente.cedula,
                         razon_social = cliente.razon_social,
                         telefonos = cliente.telefonos,
                         direccion = cliente.direccion,
