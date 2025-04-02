@@ -261,8 +261,8 @@ namespace DService
                     descripcion = "DETALLE PREFACTURA",
                     subtotal_0 = detalles.Sum(d => d.base_cero),
                     subtotal_12 = detalles.Sum(d => d.base_gravable),
-                    iva = detalles.Sum(d => d.base_gravable) * 0.12,
-                    total = detalles.Sum(d => d.base_cero + d.base_gravable + (d.base_gravable * 0.12)),
+                    iva = detalles.Sum(d => d.base_gravable * (d.porcentaje_iva / 100.0)),
+                    total = detalles.Sum(d => d.base_cero + d.base_gravable + (d.base_gravable * (d.porcentaje_iva / 100.0))),
                     adicional1 = "",
                     detalles = detalles.ToArray()
                 };
